@@ -62,7 +62,7 @@ export function ContractTabs({
 
   return (
     <div onClickCapture={onClickCapture}>
-      <nav className="sticky top-0 z-10 -mx-2 flex gap-1 border-b border-[var(--paper-edge)] bg-[var(--paper)]/85 px-2 backdrop-blur">
+      <nav className="sticky top-16 z-20 -mx-2 flex gap-1 border-b border-[var(--paper-edge)] bg-[var(--paper)]/90 px-2 backdrop-blur">
         {tabs.map((t) => {
           const on = active === t.key;
           return (
