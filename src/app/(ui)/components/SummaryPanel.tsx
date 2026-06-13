@@ -1,4 +1,6 @@
 import type { Analysis } from "@/domain/schemas/analysis";
+import { RiskGauge } from "@/app/(ui)/components/RiskGauge";
+import { RiskCategoryBar } from "@/app/(ui)/components/RiskCategoryBar";
 
 /** The one-page executive summary — editorial serif, top-3 issues as numbered filing tabs (PRD F5). */
 export function SummaryPanel({ analysis }: { analysis: Analysis | null }) {
@@ -45,15 +47,26 @@ export function SummaryPanel({ analysis }: { analysis: Analysis | null }) {
       </div>
 
       <aside className="border-l border-[var(--paper-edge)] pl-6 max-md:border-l-0 max-md:pl-0">
-        <p className="eyebrow mb-3">Key commercial terms</p>
-        <dl className="space-y-2">
-          {analysis.keyTerms.map((t, i) => (
-            <div key={i}>
-              <dt className="text-xs text-[var(--ink-3)]">{t.label}</dt>
-              <dd className="mono text-sm text-[var(--ink)]">{t.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className="flex justify-center">
+          <RiskGauge score={analysis.overallRiskScore} />
+        </div>
+
+        <div className="mt-6">
+          <p className="eyebrow mb-3">Risk by category</p>
+          <RiskCategoryBar byCategory={analysis.riskByCategory} />
+        </div>
+
+        <div className="mt-6">
+          <p className="eyebrow mb-3">Key commercial terms</p>
+          <dl className="space-y-2">
+            {analysis.keyTerms.map((t, i) => (
+              <div key={i}>
+                <dt className="text-xs text-[var(--ink-3)]">{t.label}</dt>
+                <dd className="mono text-sm text-[var(--ink)]">{t.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </aside>
     </div>
   );

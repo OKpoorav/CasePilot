@@ -11,18 +11,19 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
   if (!actor) return null;
 
   const { id } = await params;
-  const { contracts, nodes, clauses, analyses } = getContainer();
+  const { contracts, nodes, clauses, assessments, analyses } = getContainer();
   const contract = await contracts.findById(actor.orgId, id);
   if (!contract) notFound();
 
   const ready = contract.status === "ready";
-  const [tree, clauseList, analysis] = ready
+  const [tree, clauseList, assessmentList, analysis] = ready
     ? await Promise.all([
         nodes.listByContract(id),
         clauses.listByContract(id),
+        assessments.listByContract(id),
         analyses.getByContract(id),
       ])
-    : [[], [], null];
+    : [[], [], [], null];
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -45,8 +46,8 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
           </section>
 
           <section className="mt-12">
-            <p className="eyebrow mb-4">Clauses</p>
-            <ClauseList clauses={clauseList} />
+            <p className="eyebrow mb-4">Clauses (ranked by risk)</p>
+            <ClauseList clauses={clauseList} assessments={assessmentList} />
           </section>
 
           <section className="mt-12">

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RiskCategory } from "@/domain/schemas/risk";
 
 /** A commercial term worth surfacing (value, term, renewal, payment, …). */
 export const KeyTerm = z.object({
@@ -30,6 +31,8 @@ export const AnalysisSchema = z.object({
   whoCarriesRisk: z.string(),
   keyTerms: z.array(KeyTerm),
   topIssues: z.array(PersistedTopIssue),
+  overallRiskScore: z.number().int(), // 0–100, from RiskAggregator (deterministic)
+  riskByCategory: z.record(RiskCategory, z.number()),
   modelVersions: z.record(z.string(), z.string()),
   createdAt: z.date(),
 });

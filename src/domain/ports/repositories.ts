@@ -2,6 +2,10 @@ import type { Contract, ContractStatus, RegisterContractInput } from "@/domain/s
 import type { CrossReference, DocumentNode, ParsedDocument } from "@/domain/schemas/document";
 import type { Clause } from "@/domain/schemas/clause";
 import type { Analysis } from "@/domain/schemas/analysis";
+import type { ClauseAssessment, Deviation, Severity } from "@/domain/schemas/assessment";
+import type { RiskCategory } from "@/domain/schemas/risk";
+import type { MarketStandard, MarketStandardInput } from "@/domain/schemas/marketStandard";
+import type { PartyPerspective } from "@/domain/schemas/contract";
 import type { LlmUsage } from "@/domain/ports/llm";
 
 /**
@@ -35,6 +39,28 @@ export type NewAnalysis = Omit<Analysis, "createdAt">;
 export interface AnalysisRepo {
   save(analysis: NewAnalysis): Promise<void>;
   getByContract(contractId: string): Promise<Analysis | null>;
+}
+
+/** Per-clause assessments: benchmark writes deviation+rationale, score adds risk. */
+export interface AssessmentRepo {
+  /** Benchmark stage: idempotently set deviation/rationale (clears any prior risk for the contract). */
+  replaceBenchmark(
+    contractId: string,
+    items: { clauseId: string; marketStandardId: string | null; deviation: Deviation; rationale: string }[],
+  ): Promise<void>;
+  /** Score stage: attach risk to existing assessments by clause ID. */
+  setScores(
+    items: { clauseId: string; riskScore: number; severity: Severity; riskCategories: RiskCategory[] }[],
+  ): Promise<void>;
+  listByContract(contractId: string): Promise<ClauseAssessment[]>;
+}
+
+/** Market-standard baseline (PRD F3.1). Falls back to the static default when an org has no override. */
+export interface MarketStandardRepo {
+  /** All active standards applicable to the org for a perspective, keyed by clause type. */
+  forContract(orgId: string, perspective: PartyPerspective): Promise<MarketStandard[]>;
+  list(orgId: string): Promise<MarketStandard[]>;
+  upsert(orgId: string, input: MarketStandardInput): Promise<MarketStandard>;
 }
 
 /** Audit trail for every model call (usage + provenance; no contract text stored — privacy). */

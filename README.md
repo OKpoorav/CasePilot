@@ -39,5 +39,9 @@ code dispatches stages durably over HTTP.
   grounded to source text; plain-English executive summary (overview, who-carries-risk, key terms,
   top-3 issues). Vercel AI SDK behind `LlmPort`; `ModelRouter` factory; every call audited in `llm_calls`.
   Pipeline now: ingest → extract → summarise.
-- **P2 — Benchmark + Risk** (next) market-standard baseline, deviation labels, risk scoring.
-- **P3 — Compare + Polish** — see `../docs/PROJECT_PLAN.md`.
+- **P2 — Benchmark + Risk ✅** Configurable market-standard baseline (static defaults + per-org
+  overrides via admin API); `BenchmarkStage` labels each clause favourable/standard/unusual/unfavourable
+  with cited rationale; `ScoreStage` assigns risk score/severity/categories; **overall score computed
+  deterministically in code** (`RiskAggregator`, not the LLM). UI: risk gauge, category breakdown,
+  risk-ranked clause cards with deviation chips. Pipeline: ingest → extract → benchmark → score → summarise.
+- **P3 — Compare + Polish** (next) side-by-side clause comparison across contracts, exports, polish.

@@ -1,10 +1,12 @@
 import { env } from "@/infrastructure/env";
 import {
   DrizzleAnalysisRepo,
+  DrizzleAssessmentRepo,
   DrizzleClauseRepo,
   DrizzleContractRepo,
   DrizzleDocumentNodeRepo,
   DrizzleLlmCallRepo,
+  DrizzleMarketStandardRepo,
 } from "@/infrastructure/db/repositories";
 import { R2StorageAdapter } from "@/infrastructure/storage/R2StorageAdapter";
 import { DocumentParser } from "@/infrastructure/parsing/DocumentParser";
@@ -16,15 +18,19 @@ import { ModelRouter } from "@/infrastructure/llm/ModelRouter";
 import { AiSdkLlmAdapter } from "@/infrastructure/llm/AiSdkLlmAdapter";
 import { IngestStage } from "@/application/pipeline/IngestStage";
 import { ExtractStage } from "@/application/pipeline/ExtractStage";
+import { BenchmarkStage } from "@/application/pipeline/BenchmarkStage";
+import { ScoreStage } from "@/application/pipeline/ScoreStage";
 import { SummariseStage } from "@/application/pipeline/SummariseStage";
 import { PipelineRunner } from "@/application/PipelineRunner";
 import { RegisterContractUseCase } from "@/application/RegisterContractUseCase";
 import type { Stage, StageName } from "@/domain/ports/Stage";
 import type {
   AnalysisRepo,
+  AssessmentRepo,
   ClauseRepo,
   ContractRepo,
   DocumentNodeRepo,
+  MarketStandardRepo,
 } from "@/domain/ports/repositories";
 import type { QueuePort, StoragePort } from "@/domain/ports/services";
 
@@ -36,7 +42,9 @@ export interface Container {
   contracts: ContractRepo;
   nodes: DocumentNodeRepo;
   clauses: ClauseRepo;
+  assessments: AssessmentRepo;
   analyses: AnalysisRepo;
+  marketStandards: MarketStandardRepo;
   storage: StoragePort;
   runner: PipelineRunner;
   registerContract: RegisterContractUseCase;
@@ -50,7 +58,9 @@ export function getContainer(): Container {
   const contracts = new DrizzleContractRepo();
   const nodes = new DrizzleDocumentNodeRepo();
   const clauses = new DrizzleClauseRepo();
+  const assessments = new DrizzleAssessmentRepo();
   const analyses = new DrizzleAnalysisRepo();
+  const marketStandards = new DrizzleMarketStandardRepo();
   const llmCalls = new DrizzleLlmCallRepo();
   const storage = new R2StorageAdapter();
   const parser = new DocumentParser();
@@ -64,8 +74,9 @@ export function getContainer(): Container {
   const stages = new Map<StageName, Stage>([
     ["ingest", new IngestStage(storage, parser, contracts, nodes)],
     ["extract", new ExtractStage(llm, nodes, clauses)],
-    ["summarise", new SummariseStage(llm, clauses, analyses)],
-    // P2 appends: ["benchmark", …], ["score", …] (before summarise in STAGE_ORDER).
+    ["benchmark", new BenchmarkStage(llm, clauses, assessments, marketStandards)],
+    ["score", new ScoreStage(llm, clauses, assessments)],
+    ["summarise", new SummariseStage(llm, clauses, assessments, analyses)],
   ]);
 
   const runner = new PipelineRunner(stages, contracts, state, queue);
@@ -73,6 +84,16 @@ export function getContainer(): Container {
 
   const registerContract = new RegisterContractUseCase(contracts, queue);
 
-  _container = { contracts, nodes, clauses, analyses, storage, runner, registerContract };
+  _container = {
+    contracts,
+    nodes,
+    clauses,
+    assessments,
+    analyses,
+    marketStandards,
+    storage,
+    runner,
+    registerContract,
+  };
   return _container;
 }

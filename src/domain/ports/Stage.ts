@@ -14,9 +14,14 @@ export const STAGE_NAMES = [
 ] as const;
 export type StageName = (typeof STAGE_NAMES)[number];
 
-/** Stages active in the current phase. Later phases append their stage name here. */
-export const STAGE_ORDER: readonly StageName[] = ["ingest", "extract", "summarise"]; // P1
-// P2 inserts "benchmark" and "score" before "summarise".
+/** Stages active in the current phase, in execution order. */
+export const STAGE_ORDER: readonly StageName[] = [
+  "ingest",
+  "extract",
+  "benchmark",
+  "score",
+  "summarise",
+]; // P2
 
 export interface StageContext {
   readonly contract: Contract;

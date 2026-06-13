@@ -1,27 +1,40 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/infrastructure/db/client";
 import {
   analyses,
+  clauseAssessments,
   clauses,
   contracts,
   crossReferences,
   documentNodes,
   llmCalls,
+  marketStandards,
 } from "@/infrastructure/db/schema";
 import type {
   AnalysisRepo,
+  AssessmentRepo,
   ClauseRepo,
   ContractRepo,
   DocumentNodeRepo,
   LlmCallRepo,
+  MarketStandardRepo,
   NewAnalysis,
   NewClause,
 } from "@/domain/ports/repositories";
-import type { Contract, ContractStatus, RegisterContractInput } from "@/domain/schemas/contract";
+import type {
+  Contract,
+  ContractStatus,
+  PartyPerspective,
+  RegisterContractInput,
+} from "@/domain/schemas/contract";
 import type { CrossReference, DocumentNode, ParsedDocument } from "@/domain/schemas/document";
 import type { Clause, ClauseType } from "@/domain/schemas/clause";
 import type { Analysis } from "@/domain/schemas/analysis";
+import type { ClauseAssessment, Deviation, Severity } from "@/domain/schemas/assessment";
+import type { RiskCategory } from "@/domain/schemas/risk";
+import type { MarketStandard, MarketStandardInput } from "@/domain/schemas/marketStandard";
+import { DEFAULT_MARKET_STANDARDS } from "@/infrastructure/seed/marketStandards";
 
 type ContractRow = typeof contracts.$inferSelect;
 
@@ -193,6 +206,8 @@ export class DrizzleAnalysisRepo implements AnalysisRepo {
       whoCarriesRisk: a.whoCarriesRisk,
       keyTerms: a.keyTerms,
       topIssues: a.topIssues,
+      overallRiskScore: a.overallRiskScore,
+      riskByCategory: a.riskByCategory,
       modelVersions: a.modelVersions,
     };
     await db()
@@ -214,6 +229,8 @@ export class DrizzleAnalysisRepo implements AnalysisRepo {
       whoCarriesRisk: r.whoCarriesRisk,
       keyTerms: r.keyTerms as Analysis["keyTerms"],
       topIssues: r.topIssues as Analysis["topIssues"],
+      overallRiskScore: r.overallRiskScore,
+      riskByCategory: r.riskByCategory as Analysis["riskByCategory"],
       modelVersions: r.modelVersions as Record<string, string>,
       createdAt: r.createdAt,
     };
@@ -235,6 +252,136 @@ export class DrizzleLlmCallRepo implements LlmCallRepo {
       promptVersion: input.promptVersion,
       inputTokens: input.usage.inputTokens,
       outputTokens: input.usage.outputTokens,
+    });
+  }
+}
+
+export class DrizzleAssessmentRepo implements AssessmentRepo {
+  async replaceBenchmark(
+    contractId: string,
+    items: { clauseId: string; marketStandardId: string | null; deviation: Deviation; rationale: string }[],
+  ): Promise<void> {
+    await db().transaction(async (tx) => {
+      await tx.delete(clauseAssessments).where(eq(clauseAssessments.contractId, contractId));
+      if (items.length) {
+        await tx.insert(clauseAssessments).values(
+          items.map((i) => ({
+            clauseId: i.clauseId,
+            contractId,
+            marketStandardId: i.marketStandardId,
+            deviation: i.deviation,
+            rationale: i.rationale,
+            riskCategories: [] as string[],
+          })),
+        );
+      }
+    });
+  }
+
+  async setScores(
+    items: { clauseId: string; riskScore: number; severity: Severity; riskCategories: RiskCategory[] }[],
+  ): Promise<void> {
+    await db().transaction(async (tx) => {
+      for (const i of items) {
+        await tx
+          .update(clauseAssessments)
+          .set({ riskScore: i.riskScore, severity: i.severity, riskCategories: i.riskCategories })
+          .where(eq(clauseAssessments.clauseId, i.clauseId));
+      }
+    });
+  }
+
+  async listByContract(contractId: string): Promise<ClauseAssessment[]> {
+    const rows = await db()
+      .select()
+      .from(clauseAssessments)
+      .where(eq(clauseAssessments.contractId, contractId));
+    return rows.map((r) => ({
+      clauseId: r.clauseId,
+      contractId: r.contractId,
+      marketStandardId: r.marketStandardId,
+      deviation: r.deviation as Deviation,
+      rationale: r.rationale,
+      riskScore: r.riskScore,
+      severity: (r.severity as Severity | null) ?? null,
+      riskCategories: r.riskCategories as RiskCategory[],
+    }));
+  }
+}
+
+export class DrizzleMarketStandardRepo implements MarketStandardRepo {
+  private toMS(r: typeof marketStandards.$inferSelect): MarketStandard {
+    return {
+      id: r.id,
+      orgId: r.orgId,
+      clauseType: r.clauseType as MarketStandard["clauseType"],
+      perspective: r.perspective as PartyPerspective,
+      title: r.title,
+      standardPosition: r.standardPosition,
+      acceptableRange: r.acceptableRange,
+      referenceLanguage: r.referenceLanguage,
+      sourceNote: r.sourceNote,
+      active: r.active,
+    };
+  }
+
+  private synthDefaults(perspective: PartyPerspective): Map<string, MarketStandard> {
+    const m = new Map<string, MarketStandard>();
+    for (const [type, d] of Object.entries(DEFAULT_MARKET_STANDARDS)) {
+      m.set(type, {
+        id: `default:${type}`,
+        orgId: null,
+        clauseType: type as MarketStandard["clauseType"],
+        perspective,
+        title: d.title,
+        standardPosition: d.standardPosition,
+        acceptableRange: d.acceptableRange,
+        referenceLanguage: d.referenceLanguage,
+        sourceNote: d.sourceNote,
+        active: true,
+      });
+    }
+    return m;
+  }
+
+  async forContract(orgId: string, perspective: PartyPerspective): Promise<MarketStandard[]> {
+    const rows = await db()
+      .select()
+      .from(marketStandards)
+      .where(
+        and(
+          eq(marketStandards.perspective, perspective),
+          eq(marketStandards.active, true),
+          or(eq(marketStandards.orgId, orgId), isNull(marketStandards.orgId)),
+        ),
+      );
+    const byType = this.synthDefaults(perspective);
+    // DB globals override static defaults; org-specific override globals.
+    for (const r of rows.filter((r) => r.orgId === null)) byType.set(r.clauseType, this.toMS(r));
+    for (const r of rows.filter((r) => r.orgId === orgId)) byType.set(r.clauseType, this.toMS(r));
+    return [...byType.values()];
+  }
+
+  async list(orgId: string): Promise<MarketStandard[]> {
+    return this.forContract(orgId, "us");
+  }
+
+  async upsert(orgId: string, input: MarketStandardInput): Promise<MarketStandard> {
+    return db().transaction(async (tx) => {
+      await tx
+        .delete(marketStandards)
+        .where(
+          and(
+            eq(marketStandards.orgId, orgId),
+            eq(marketStandards.clauseType, input.clauseType),
+            eq(marketStandards.perspective, input.perspective),
+          ),
+        );
+      const [row] = await tx
+        .insert(marketStandards)
+        .values({ orgId, ...input })
+        .returning();
+      return this.toMS(row);
     });
   }
 }

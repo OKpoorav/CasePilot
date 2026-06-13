@@ -16,6 +16,8 @@ export class ModelRouter {
   forTask(task: LlmTask): ModelConfig {
     switch (task) {
       case "extract":
+      case "benchmark":
+      case "score":
       case "summarise":
         return {
           modelId: "claude-opus-4-8",

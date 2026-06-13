@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -94,9 +95,45 @@ export const analyses = pgTable("analyses", {
   whoCarriesRisk: text("who_carries_risk").notNull(),
   keyTerms: jsonb("key_terms").notNull(),
   topIssues: jsonb("top_issues").notNull(),
+  overallRiskScore: integer("overall_risk_score").notNull().default(0),
+  riskByCategory: jsonb("risk_by_category").notNull(),
   modelVersions: jsonb("model_versions").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const marketStandards = pgTable(
+  "market_standards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: text("org_id"), // null = global default
+    clauseType: text("clause_type").notNull(),
+    perspective: text("perspective").notNull(),
+    title: text("title").notNull(),
+    standardPosition: text("standard_position").notNull(),
+    acceptableRange: text("acceptable_range"),
+    referenceLanguage: text("reference_language"),
+    sourceNote: text("source_note"),
+    active: boolean("active").notNull().default(true),
+  },
+  (t) => [index("market_standards_org_idx").on(t.orgId)],
+);
+
+export const clauseAssessments = pgTable(
+  "clause_assessments",
+  {
+    clauseId: uuid("clause_id")
+      .primaryKey()
+      .references(() => clauses.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id").notNull(),
+    marketStandardId: uuid("market_standard_id"),
+    deviation: text("deviation").notNull(),
+    rationale: text("rationale").notNull(),
+    riskScore: integer("risk_score"),
+    severity: text("severity"),
+    riskCategories: text("risk_categories").array().notNull(),
+  },
+  (t) => [index("clause_assessments_contract_idx").on(t.contractId)],
+);
 
 export const llmCalls = pgTable(
   "llm_calls",
