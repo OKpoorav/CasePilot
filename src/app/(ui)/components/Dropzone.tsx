@@ -87,8 +87,10 @@ export function Dropzone() {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
-      className={`cursor-pointer rounded-[var(--radius)] border border-dashed p-12 text-center transition-colors ${
-        dragging ? "border-[var(--claret)] bg-[var(--paper-2)]" : "border-[var(--paper-edge)]"
+      className={`group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-10 text-center transition-colors ${
+        dragging
+          ? "border-[var(--claret)] bg-[color-mix(in_srgb,var(--claret)_5%,var(--paper-2))]"
+          : "border-[var(--paper-edge)] bg-[var(--paper-2)] hover:border-[var(--claret)]"
       }`}
     >
       <input
@@ -101,14 +103,35 @@ export function Dropzone() {
           if (f) void handleFile(f);
         }}
       />
-      <p className="text-lg text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
+
+      {/* Upload glyph — neutral, shifts to claret on hover/drag */}
+      <div
+        className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--paper-edge)] bg-[var(--paper)] transition-colors group-hover:border-[var(--claret)]"
+        style={{ color: dragging ? "var(--claret)" : "var(--ink-3)" }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`transition-colors group-hover:stroke-[var(--claret)] ${busy ? "animate-pulse" : ""}`}>
+          <path d="M12 16V4" />
+          <path d="M7 9l5-5 5 5" />
+          <path d="M5 20h14" />
+        </svg>
+      </div>
+
+      <p className="text-xl text-[var(--ink)]" style={{ fontFamily: "var(--font-display)" }}>
         {busy
           ? phase === "uploading"
             ? "Uploading contract…"
             : "Filing & starting analysis…"
           : "Drop a contract here"}
       </p>
-      <p className="mt-1 text-sm text-[var(--ink-3)]">PDF or DOCX · up to 100 pages</p>
+      <p className="mt-1 text-sm text-[var(--ink-3)]">
+        {busy ? "Please wait…" : "PDF or DOCX · up to 100 pages"}
+      </p>
+
+      {!busy && (
+        <span className="mt-4 text-sm text-[var(--claret)] underline-offset-4 group-hover:underline">
+          or click to browse
+        </span>
+      )}
       {error && <p className="mt-3 text-sm text-[var(--risk-critical)]">{error}</p>}
     </div>
   );
