@@ -81,7 +81,7 @@ export function buildBenchmarkPrompt(
     const ref = refByClauseId.get(c.id)!;
     const std = stdByType.get(c.clauseType);
     const baseline = std
-      ? `Baseline (${std.title}): ${std.standardPosition}${std.acceptableRange ? ` Acceptable range: ${std.acceptableRange}.` : ""}`
+      ? `Baseline (${std.title}): ${std.standardPosition}${std.acceptableRange ? ` Acceptable range: ${std.acceptableRange}.` : ""}${std.referenceLanguage ? ` Reference language: ${std.referenceLanguage}.` : ""}`
       : "Baseline: (no specific standard — judge against general market norms).";
     return `[${ref}] ${CLAUSE_LABELS[c.clauseType]}\nClause text: ${truncate(c.verbatimText)}\n${baseline}`;
   });

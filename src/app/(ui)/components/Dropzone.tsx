@@ -86,7 +86,12 @@ export function Dropzone() {
       onClick={() => inputRef.current?.click()}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       className={`group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-10 text-center transition-colors ${
         dragging
           ? "border-[var(--claret)] bg-[color-mix(in_srgb,var(--claret)_5%,var(--paper-2))]"

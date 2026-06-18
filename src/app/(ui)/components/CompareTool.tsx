@@ -32,8 +32,11 @@ export function CompareTool({ contracts }: { contracts: { id: string; title: str
   const toggle = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 6) {
+        next.add(id);
+      }
       return next;
     });
 
@@ -79,25 +82,34 @@ export function CompareTool({ contracts }: { contracts: { id: string; title: str
           </select>
         </label>
 
-        <p className="eyebrow mt-4 mb-2">Contracts (pick 2+)</p>
-        <div className="flex flex-wrap gap-2">
-          {contracts.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => toggle(c.id)}
-              aria-pressed={selected.has(c.id)}
-              className="rounded-full border px-3 py-1 text-sm transition-colors"
-              style={{
-                borderColor: selected.has(c.id) ? "var(--claret)" : "var(--paper-edge)",
-                color: selected.has(c.id) ? "var(--claret)" : "var(--ink-2)",
-                background: selected.has(c.id) ? "color-mix(in srgb, var(--claret) 8%, transparent)" : "transparent",
-              }}
-            >
-              {c.title}
-            </button>
-          ))}
-        </div>
+        <p className="eyebrow mt-4 mb-2">Contracts (pick 2 to 6)</p>
+        {contracts.length === 0 ? (
+          <p className="mt-2 text-sm text-[var(--ink-3)]">No contracts available. Upload some contracts first to compare.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {contracts.map((c) => {
+              const isSelected = selected.has(c.id);
+              const isMaxed = selected.size >= 6;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggle(c.id)}
+                  aria-pressed={isSelected}
+                  disabled={!isSelected && isMaxed}
+                  className="rounded-full border px-3 py-1 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    borderColor: isSelected ? "var(--claret)" : "var(--paper-edge)",
+                    color: isSelected ? "var(--claret)" : "var(--ink-2)",
+                    background: isSelected ? "color-mix(in srgb, var(--claret) 8%, transparent)" : "transparent",
+                  }}
+                >
+                  {c.title}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <button
           type="button"
@@ -126,7 +138,7 @@ export function CompareTool({ contracts }: { contracts: { id: string; title: str
                 )}
                 {e.riskScore !== null && (
                   <span className="num text-xs text-[var(--ink-3)]">
-                    {e.deviation} · {e.riskScore}/100
+                    <span className="capitalize">{e.deviation}</span> · {e.riskScore}/100
                   </span>
                 )}
                 <p className="mono mt-2 text-xs leading-[1.55] text-[var(--ink-2)]">
