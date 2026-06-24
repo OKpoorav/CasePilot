@@ -57,7 +57,13 @@ export function aggregateRisk(
     (acc, cat) => {
       const inCat = scored.filter((a) => a.riskCategories.includes(cat));
       acc[cat] = inCat.length
-        ? Math.round(inCat.reduce((s, a) => s + a.riskScore, 0) / inCat.length)
+        ? Math.min(
+            100,
+            Math.max(
+              0,
+              Math.round(inCat.reduce((s, a) => s + a.riskScore, 0) / inCat.length),
+            ),
+          )
         : 0;
       return acc;
     },

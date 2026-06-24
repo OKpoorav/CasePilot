@@ -72,4 +72,17 @@ describe("aggregateRisk", () => {
     expect(r.overall).toBeLessThanOrEqual(100);
     expect(r.overall).toBeGreaterThanOrEqual(0);
   });
+
+  it("clamps category scores to 0–100", () => {
+    const types = new Map<string, ClauseType>([
+      ["a", "indemnity"],
+      ["b", "payment_terms"],
+    ]);
+    const r = aggregateRisk(
+      [mk("a", 150, "high", ["legal"]), mk("b", -50, "medium", ["financial"])],
+      types,
+    );
+    expect(r.byCategory.legal).toBe(100);
+    expect(r.byCategory.financial).toBe(0);
+  });
 });
